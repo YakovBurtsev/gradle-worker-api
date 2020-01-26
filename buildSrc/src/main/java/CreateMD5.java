@@ -1,6 +1,8 @@
+import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.file.RegularFile;
 import org.gradle.api.provider.Provider;
+import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.OutputDirectory;
 import org.gradle.api.tasks.SourceTask;
 import org.gradle.api.tasks.TaskAction;
@@ -14,12 +16,14 @@ public class CreateMD5 extends SourceTask {
 
     private final WorkerExecutor workerExecutor;
     private final DirectoryProperty destinationDirectory;
+    private final ConfigurableFileCollection codecClasspath;
 
     @Inject
     public CreateMD5(WorkerExecutor workerExecutor) {
         super();
         this.workerExecutor = workerExecutor;
         this.destinationDirectory = getProject().getObjects().directoryProperty();
+        this.codecClasspath = getProject().getObjects().fileCollection();
     }
 
     @OutputDirectory
@@ -27,9 +31,16 @@ public class CreateMD5 extends SourceTask {
         return destinationDirectory;
     }
 
+    @InputFiles
+    public ConfigurableFileCollection getCodecClasspath() {
+        return codecClasspath;
+    }
+
     @TaskAction
     public void createHashes() {
-        WorkQueue workQueue = workerExecutor.noIsolation();
+        WorkQueue workQueue = workerExecutor.classLoaderIsolation(workerSpec -> {
+            workerSpec.getClasspath().from(codecClasspath);
+        });
 
         for (File sourceFile : getSource().getFiles()) {
             Provider<RegularFile> md5File = destinationDirectory.file(sourceFile.getName() + ".md5");
