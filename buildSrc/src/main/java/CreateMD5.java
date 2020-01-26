@@ -13,7 +13,6 @@ import javax.inject.Inject;
 import java.io.File;
 
 public class CreateMD5 extends SourceTask {
-
     private final WorkerExecutor workerExecutor;
     private final DirectoryProperty destinationDirectory;
     private final ConfigurableFileCollection codecClasspath;
@@ -38,8 +37,12 @@ public class CreateMD5 extends SourceTask {
 
     @TaskAction
     public void createHashes() {
-        WorkQueue workQueue = workerExecutor.classLoaderIsolation(workerSpec -> {
+
+        WorkQueue workQueue = workerExecutor.processIsolation(workerSpec -> {
             workerSpec.getClasspath().from(codecClasspath);
+            workerSpec.forkOptions(options -> {
+                options.setMaxHeapSize("64m");
+            });
         });
 
         for (File sourceFile : getSource().getFiles()) {
